@@ -1,0 +1,497 @@
+/* =========================================================
+   NutriVida — estilos propios sobre Bootstrap 5.3
+   Bootstrap aporta la grilla (row/col), componentes y utilidades.
+   Aquí solo va el tema de marca y lo que Bootstrap no incluye
+   (gráficos, mapa, línea de tiempo, tablas como tarjetas en móvil).
+   Breakpoints de Bootstrap usados: sm 576 · md 768 · lg 992 · xl 1200
+   ========================================================= */
+
+:root {
+  /* Tema de marca: verde NutriVida en las variables de Bootstrap */
+  --bs-success: #1f7a55;
+  --bs-success-rgb: 31, 122, 85;
+  --bs-success-text-emphasis: #0f3d2b;
+  --bs-success-bg-subtle: #e3f3ea;
+  --bs-success-border-subtle: #a9d8bf;
+  --bs-link-color: #1f7a55;
+  --bs-link-color-rgb: 31, 122, 85;
+  --bs-link-hover-color: #165c40;
+  --bs-link-hover-color-rgb: 22, 92, 64;
+  --bs-border-radius: 0.6rem;
+  --bs-focus-ring-color: rgba(31, 122, 85, 0.3);
+
+  /* Paleta de gráficos (validada para daltonismo) */
+  --serie-1: #2a78d6;
+  --serie-2: #eb6834;
+
+  --alto-barra: 61px;
+  --ancho-menu: 250px;
+}
+
+.btn-success {
+  --bs-btn-bg: #1f7a55;
+  --bs-btn-border-color: #1f7a55;
+  --bs-btn-hover-bg: #186446;
+  --bs-btn-hover-border-color: #186446;
+  --bs-btn-active-bg: #145439;
+  --bs-btn-active-border-color: #145439;
+  --bs-btn-disabled-bg: #1f7a55;
+  --bs-btn-disabled-border-color: #1f7a55;
+}
+.btn-outline-success {
+  --bs-btn-color: #1f7a55;
+  --bs-btn-border-color: #1f7a55;
+  --bs-btn-hover-bg: #1f7a55;
+  --bs-btn-hover-border-color: #1f7a55;
+  --bs-btn-active-bg: #1f7a55;
+  --bs-btn-active-border-color: #1f7a55;
+}
+.nav-pills {
+  --bs-nav-pills-link-active-bg: #1f7a55;
+}
+.nav-link {
+  --bs-nav-link-color: var(--bs-body-color);
+  --bs-nav-link-hover-color: #1f7a55;
+}
+.nav-tabs .nav-link.active {
+  color: #1f7a55;
+  font-weight: 600;
+}
+.form-control:focus,
+.form-select:focus,
+.form-check-input:focus {
+  border-color: #6fb795;
+  box-shadow: 0 0 0 0.25rem var(--bs-focus-ring-color);
+}
+.form-check-input:checked {
+  background-color: #1f7a55;
+  border-color: #1f7a55;
+}
+/* Fondo gris suave solo para la página; tarjetas, modales e inputs quedan blancos */
+body {
+  background-color: #f5f7f6;
+}
+
+/* Inputs a 16px en móvil para evitar el zoom automático de iOS */
+.form-control,
+.form-select {
+  font-size: 1rem;
+}
+
+.primera-mayuscula::first-letter {
+  text-transform: uppercase;
+}
+.min-w-0 {
+  min-width: 0;
+}
+
+/* ---------------- Marca, avatar e íconos ---------------- */
+.marca-logo {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: #1f7a55;
+  color: #fff;
+}
+.marca-logo-clara {
+  background: rgb(255 255 255 / 0.15);
+}
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--bs-success-bg-subtle);
+  color: var(--bs-success-text-emphasis);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.avatar-lg {
+  width: 56px;
+  height: 56px;
+  font-size: 1.15rem;
+}
+.icono-circular {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+}
+.usuario-chip:hover {
+  background: var(--bs-success-bg-subtle);
+}
+
+/* ---------------- Layout: barra superior + menú lateral ---------------- */
+.barra-superior {
+  min-height: var(--alto-barra);
+  z-index: 1030;
+}
+@media (min-width: 768px) {
+  /* Desde md el Offcanvas responsive queda fijo como barra lateral */
+  .menu-lateral {
+    width: var(--ancho-menu);
+    flex: none;
+    position: sticky;
+    top: var(--alto-barra);
+    height: calc(100vh - var(--alto-barra));
+    overflow-y: auto;
+  }
+}
+@media (min-width: 1200px) {
+  :root {
+    --ancho-menu: 270px;
+  }
+}
+.contenido {
+  min-width: 0;
+  min-height: calc(100vh - var(--alto-barra));
+}
+
+/* Selector segmentado: nav-pills con desplazamiento horizontal en móvil */
+.segmentado {
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: #e7ece9;
+  border-radius: var(--bs-border-radius);
+  padding: 3px;
+  gap: 2px;
+  width: fit-content;
+  max-width: 100%;
+}
+.segmentado .nav-link {
+  white-space: nowrap;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--bs-secondary-color);
+}
+.segmentado .nav-link.active {
+  background: #fff;
+  color: var(--bs-body-color);
+  box-shadow: var(--bs-box-shadow-sm);
+}
+.segmentado-sm .nav-link {
+  padding: 0.25rem 0.65rem;
+  font-size: 0.85rem;
+}
+.nav-tabs {
+  scrollbar-width: none;
+}
+
+/* ---------------- Acceso (login / registro) ---------------- */
+.panel-marca {
+  background: linear-gradient(160deg, #0f3d2b, #1f7a55);
+}
+@media (min-width: 768px) {
+  .panel-marca {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+}
+.acceso-tarjeta {
+  max-width: 440px;
+}
+.acceso-ancha {
+  max-width: 680px;
+}
+details > summary {
+  cursor: pointer;
+  list-style: none;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.tarjeta-enlace {
+  transition: border-color 0.15s;
+}
+.tarjeta-enlace:hover {
+  border-color: #1f7a55;
+}
+
+/* ---------------- Tablas como tarjetas en móvil (< 768px) ---------------- */
+@media (max-width: 767.98px) {
+  .tabla-movil thead {
+    display: none;
+  }
+  .tabla-movil,
+  .tabla-movil tbody,
+  .tabla-movil tr,
+  .tabla-movil td {
+    display: block;
+    width: 100%;
+  }
+  .tabla-movil tr {
+    padding: 0.75rem 1rem;
+    border-bottom: var(--bs-border-width) solid var(--bs-border-color);
+  }
+  .tabla-movil tbody tr:last-child {
+    border-bottom: 0;
+  }
+  .tabla-movil > :not(caption) > * > * {
+    border-bottom-width: 0;
+    padding: 0.2rem 0;
+  }
+  .tabla-movil td {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    text-align: right !important;
+  }
+  .tabla-movil td[data-label]::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--bs-secondary-color);
+    text-align: left;
+    flex: none;
+  }
+  .tabla-movil td:not([data-label]) {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    padding-top: 0.5rem;
+    white-space: normal !important;
+  }
+  .tabla-movil td > .d-flex.flex-column {
+    align-items: flex-end;
+  }
+}
+
+/* ---------------- Línea de tiempo (historial de la cita) ---------------- */
+.linea-tiempo {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 1.1rem;
+  border-left: 2px solid var(--bs-border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.linea-tiempo li {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9rem;
+}
+.linea-tiempo li::before {
+  content: '';
+  position: absolute;
+  left: -1.55rem;
+  top: 0.3rem;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #1f7a55;
+  border: 2px solid #fff;
+}
+
+.comida {
+  border-left: 4px solid #1f7a55 !important;
+}
+
+/* ---------------- Gráficos ---------------- */
+.grafico {
+  position: relative;
+  margin: 0;
+  width: 100%;
+  min-width: 0;
+}
+.grafico svg {
+  overflow: visible;
+  touch-action: pan-y;
+}
+.grafico-grilla {
+  stroke: var(--bs-border-color);
+}
+.grafico-eje {
+  fill: var(--bs-secondary-color);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.grafico-linea {
+  fill: none;
+  stroke: var(--serie-1);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.grafico-punto {
+  fill: var(--serie-1);
+  stroke: #fff;
+  stroke-width: 2;
+}
+.grafico-cursor {
+  stroke: var(--bs-border-color);
+  stroke-dasharray: 4 4;
+}
+.grafico-etiqueta {
+  fill: var(--bs-body-color);
+  font-size: 13px;
+  font-weight: 700;
+}
+/* Tooltip propio del gráfico (distinto del .tooltip de Bootstrap) */
+.grafico-tooltip {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: var(--bs-border-radius);
+  background: #fff;
+  border: 1px solid var(--bs-border-color);
+  box-shadow: var(--bs-box-shadow);
+  font-size: 0.825rem;
+  white-space: nowrap;
+  z-index: 2;
+}
+.tooltip-fila,
+.leyenda span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tooltip-fila i,
+.leyenda i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}
+.leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+  color: var(--bs-secondary-color);
+}
+.barras {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.barra-fila {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40px;
+  grid-template-areas:
+    'etiqueta valor'
+    'pista pista';
+  gap: 4px 10px;
+  align-items: center;
+  border-radius: 6px;
+}
+.barra-fila:hover .barra-relleno,
+.barra-fila:focus .barra-relleno {
+  filter: brightness(0.9);
+}
+.barra-etiqueta {
+  grid-area: etiqueta;
+  font-size: 0.875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.barra-pista {
+  grid-area: pista;
+  height: 12px;
+}
+.barra-relleno {
+  display: block;
+  height: 100%;
+  min-width: 4px;
+  background: var(--serie-1);
+  border-radius: 0 4px 4px 0;
+}
+.barra-valor {
+  grid-area: valor;
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+@media (min-width: 992px) {
+  .barra-fila {
+    grid-template-columns: 190px minmax(0, 1fr) 40px;
+    grid-template-areas: 'etiqueta pista valor';
+  }
+}
+
+/* ---------------- Mapa (Leaflet) ---------------- */
+.mapa {
+  width: 100%;
+  height: 340px !important;
+  z-index: 0;
+}
+@media (min-width: 768px) {
+  .mapa {
+    height: 440px !important;
+  }
+}
+@media (min-width: 992px) {
+  .mapa {
+    height: 540px !important;
+  }
+}
+.marcador-usuario span {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #2a78d6;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 2px rgb(42 120 214 / 0.35);
+}
+
+/* ---------------- Impresión del plan alimenticio ---------------- */
+@media print {
+  .barra-superior,
+  .menu-lateral,
+  .no-imprimir {
+    display: none !important;
+  }
+  .card {
+    box-shadow: none !important;
+    border: 0;
+  }
+}
+
+/* ---------------- Página de bienvenida (pública) ---------------- */
+.bienvenida section[id],
+#acceso {
+  scroll-margin-top: 72px; /* evita que la navbar fija tape el título al navegar por anclas */
+}
+.hero {
+  background:
+    radial-gradient(circle at 85% 20%, rgb(255 255 255 / 0.12), transparent 45%),
+    linear-gradient(150deg, #0f3d2b, #1f7a55 70%, #2a9a6c);
+}
+.opacity-90 {
+  opacity: 0.9;
+}
+.paso-numero {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #1f7a55;
+  color: #fff;
+  font-weight: 700;
+}
+.bienvenida .mapa {
+  height: 320px !important;
+}
+@media (min-width: 992px) {
+  .bienvenida .mapa {
+    height: 100% !important;
+    min-height: 380px;
+  }
+}
