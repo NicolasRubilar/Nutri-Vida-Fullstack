@@ -70,4 +70,17 @@ describe('components/FormLogin', () => {
     expect(localStorage.getItem('nv_marca')).toBe('sin cambios')
     expect(screen.queryByText('Datos de demostración restablecidos.')).toBeNull()
   })
+
+  it('deshabilita el botón de envío y cambia el texto a "Verificando..." mientras procesa el login', async () => {
+    montar();
+    escribir('Correo electrónico', 'paciente@nutrivida.cl');
+    escribir('Contraseña', 'ClaveCorrecta123');
+    
+    const botonSubmit = screen.getByRole('button', { name: 'Ingresar' });
+    
+    fireEvent.click(botonSubmit);
+    
+    expect(botonSubmit.disabled).toBe(true);
+    expect(botonSubmit.textContent).toBe('Verificando…');
+  });
 })

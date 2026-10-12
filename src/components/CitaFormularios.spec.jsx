@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { ModalCancelarCita, SelectorHorario } from './CitaFormularios'
-import { listarCitas } from '../services/api'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { AccionesForm, ModalCancelarCita, SelectorHorario } from './CitaFormularios'
+import * as api from '../services/api'
 import { cargarDatosDemo, diaHabil, esperarAnimaciones, hastaQue, iniciarComo, tabla } from '../test/ayudantes'
 
 function proximoSabado() {
@@ -39,9 +39,26 @@ describe('components/CitaFormularios', () => {
     })
   })
 
+  describe('<AccionesForm>', () => {
+    it('renderiza botones y ejecuta onCancelar usando mocks (spies)', () => {
+      const spyCancelar = jasmine.createSpy('onCancelar')
+      render(
+        <AccionesForm onCancelar={spyCancelar} textoCancelar="Volver">
+          <button>Confirmar</button>
+        </AccionesForm>
+      )
+      
+      expect(screen.getByText('Volver')).toBeTruthy()
+      expect(screen.getByText('Confirmar')).toBeTruthy()
+      
+      fireEvent.click(screen.getByRole('button', { name: 'Volver' }))
+      expect(spyCancelar).toHaveBeenCalled()
+    })
+  })
+
   describe('<ModalCancelarCita>', () => {
     it('cancela la cita con el motivo indicado y avisa al padre con onListo', async () => {
-      const cita = (await listarCitas()).find((c) => c.estado === 'confirmada')
+      const cita = (await api.listarCitas()).find((c) => c.estado === 'confirmada')
       const onListo = jasmine.createSpy('onListo')
       render(<ModalCancelarCita cita={cita} onCerrar={() => {}} onListo={onListo} />)
 
