@@ -4,12 +4,12 @@ import { render, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { AuthProvider } from '../context/AuthContext'
 import Layout from '../components/Layout'
-import { inicializarDatos } from '../data/seed'
+import { inicializarDatos } from './servidorFalso/seed'
 import { iniciarSesion } from '../services/auth'
 
 let copia = null
 
-// Carga los datos de demostración en localStorage. La primera vez los genera (hash de
+// Carga los datos de demostración en el backend simulado (localStorage). La primera vez los genera (hash de
 // contraseñas incluido) y guarda una copia; las siguientes solo restaura la copia.
 export async function cargarDatosDemo() {
   if (!copia) {
@@ -33,7 +33,7 @@ export function iniciarComo(cuenta) {
   return iniciarSesion(...CUENTAS[cuenta])
 }
 
-// Lee una "tabla" directamente desde localStorage
+// Lee una "tabla" del backend simulado directamente desde localStorage
 export function tabla(nombre) {
   return JSON.parse(localStorage.getItem('nv_' + nombre) ?? '[]')
 }

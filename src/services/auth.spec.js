@@ -1,99 +1,91 @@
-import { cerrarSesion, iniciarSesion, registrarPaciente, requerir, sesionActual } from './auth'
+import { cambiarPassword, cerrarSesion, iniciarSesion, registrarPaciente, restaurarSesion, sesionActual } from './auth'
+import { MARCA_SESION, limpiarSesion } from './http'
 import { cargarDatosDemo, CUENTAS, iniciarComo, tabla } from '../test/ayudantes'
 
-const NUEVO = {
-  nombre: 'Lucía',
-  apellido: 'Millán',
-  rut: '11.111.111-1',
-  fechaNacimiento: '1996-03-14',
-  email: 'lucia@correo.cl',
-  telefono: '+56 9 8765 4321',
-  password: 'Lucia2026',
+const ruta = (llamada) => new URL(String(llamada[0])).pathname
+
+// Simula recargar la página: la memoria de JavaScript se pierde, la cookie y la marca no
+function recargarPagina() {
+  limpiarSesion()
+  localStorage.setItem(MARCA_SESION, '1')
 }
 
-describe('services/auth: autenticación y sesiones', () => {
+describe('services/auth: sesión en el frontend', () => {
   beforeEach(async () => {
     await cargarDatosDemo()
   })
 
-  it('registrarPaciente guarda la contraseña con hash + sal (nunca en texto plano) y crea el perfil', async () => {
-    const usuario = await registrarPaciente(NUEVO)
-
-    const guardado = tabla('usuarios').find((u) => u.email === 'lucia@correo.cl')
-    expect(usuario.rol).toBe('paciente')
-    expect(usuario.passwordHash).toBeUndefined() // no se expone al frontend
-    expect(guardado.passwordHash).toMatch(/^[0-9a-f]{64}$/)
-    expect(guardado.sal).toMatch(/^[0-9a-f]{32}$/)
-    expect(JSON.stringify(guardado)).not.toContain('Lucia2026')
-    expect(tabla('pacientes').some((p) => p.usuarioId === guardado.id)).toBeTrue()
-    expect(sessionStorage.getItem('nv_token')).toMatch(/^[0-9a-f]{64}$/)
-  })
-
-  it('registrarPaciente rechaza datos inválidos con error 422 y detalle por campo', async () => {
-    const error = await registrarPaciente({ ...NUEVO, rut: '12.345.678-9', password: 'abc', email: CUENTAS.paciente[0] }).catch((e) => e)
-
-    expect(error.status).toBe(422)
-    expect(Object.keys(error.campos)).toEqual(jasmine.arrayContaining(['rut', 'password', 'email']))
-    expect(error.campos.email).toContain('Ya existe')
-  })
-
-  it('iniciarSesion con credenciales correctas entrega el usuario y un token vigente', async () => {
+  it('iniciarSesion hace POST /api/auth/login y deja el usuario en memoria', async () => {
     const usuario = await iniciarComo('nutri')
 
+    const [url, opciones] = window.fetch.calls.mostRecent().args
+    expect(new URL(String(url)).pathname).toBe('/api/auth/login')
+    expect(opciones.method).toBe('POST')
+    expect(JSON.parse(opciones.body)).toEqual({ email: CUENTAS.nutri[0], password: CUENTAS.nutri[1] })
     expect(usuario.email).toBe('crojas@nutrivida.cl')
-    expect(usuario.sal).toBeUndefined()
     expect(sesionActual().id).toBe(usuario.id)
-    expect(tabla('sesiones').length).toBe(1)
+    expect(localStorage.getItem(MARCA_SESION)).toBe('1')
   })
 
-  it('una contraseña incorrecta responde 401 con mensaje genérico e intentos restantes', async () => {
+  it('credenciales incorrectas: muestra el mensaje del backend y no deja sesión', async () => {
     const error = await iniciarSesion(CUENTAS.paciente[0], 'Incorrecta1').catch((e) => e)
 
     expect(error.status).toBe(401)
-    expect(error.message).toContain('Correo o contraseña incorrectos')
     expect(error.message).toContain('Te quedan 4 intentos')
     expect(sesionActual()).toBeNull()
+    expect(localStorage.getItem(MARCA_SESION)).toBeNull()
   })
 
-  it('bloquea la cuenta tras 5 intentos fallidos, incluso si luego la clave es correcta', async () => {
-    for (let i = 0; i < 5; i++) await iniciarSesion(CUENTAS.paciente[0], 'Incorrecta1').catch(() => {})
+  it('la sesión sobrevive a una recarga: se restaura con la cookie de renovación', async () => {
+    const usuario = await iniciarComo('paciente')
+    recargarPagina()
+    expect(sesionActual()).toBeNull()
 
-    const error = await iniciarComo('paciente').catch((e) => e)
-    expect(error.status).toBe(423)
-    expect(error.message).toContain('bloqueada')
+    const restaurado = await restaurarSesion()
+
+    expect(restaurado.id).toBe(usuario.id)
+    expect(sesionActual().id).toBe(usuario.id)
+    expect(window.fetch.calls.allArgs().map(ruta)).toContain('/api/auth/refresh')
   })
 
-  it('no permite iniciar sesión a una cuenta desactivada', async () => {
-    const usuarios = tabla('usuarios').map((u) => (u.email === CUENTAS.secretaria[0] ? { ...u, activo: false } : u))
-    localStorage.setItem('nv_usuarios', JSON.stringify(usuarios))
-
-    const error = await iniciarComo('secretaria').catch((e) => e)
-    expect(error.status).toBe(403)
+  it('sin sesión previa no intenta restaurar (un visitante no llama al backend)', async () => {
+    expect(await restaurarSesion()).toBeNull()
+    expect(window.fetch).not.toHaveBeenCalled()
   })
 
-  it('requerir() rechaza sin token (401) y con rol no permitido (403)', async () => {
-    expect(() => requerir()).toThrowMatching((e) => e.status === 401)
-
-    await iniciarComo('paciente')
-    expect(() => requerir('admin')).toThrowMatching((e) => e.status === 403)
-    expect(requerir('paciente').rol).toBe('paciente')
-  })
-
-  it('la sesión expira después de 120 minutos sin actividad (mock del reloj)', async () => {
+  it('cerrarSesion olvida el token y pide al backend revocar la cookie', async () => {
     await iniciarComo('admin')
-    jasmine.clock().install()
-    jasmine.clock().mockDate(new Date(Date.now() + 121 * 60_000))
+    await cerrarSesion()
 
     expect(sesionActual()).toBeNull()
-    expect(sessionStorage.getItem('nv_token')).toBeNull()
-    jasmine.clock().uninstall()
+    expect(localStorage.getItem(MARCA_SESION)).toBeNull()
+    expect(window.fetch.calls.mostRecent().args[0].toString()).toContain('/api/auth/logout')
+    recargarPagina()
+    expect(await restaurarSesion()).toBeNull()
   })
 
-  it('cerrarSesion elimina el token del navegador y la sesión almacenada', async () => {
-    await iniciarComo('admin')
-    cerrarSesion()
+  it('registrarPaciente envía el formulario y deja la sesión iniciada como paciente', async () => {
+    const u = await registrarPaciente({
+      nombre: 'Lucía',
+      apellido: 'Millán',
+      rut: '11.111.111-1',
+      fechaNacimiento: '1996-03-14',
+      email: 'lucia@correo.cl',
+      password: 'Lucia2026',
+    })
 
-    expect(sessionStorage.getItem('nv_token')).toBeNull()
-    expect(tabla('sesiones').length).toBe(0)
+    expect(u.rol).toBe('paciente')
+    expect(sesionActual().email).toBe('lucia@correo.cl')
+  })
+
+  it('cambiarPassword reemplaza el token de esta pestaña y cierra las demás sesiones', async () => {
+    await iniciarComo('paciente')
+    await iniciarComo('paciente') // segunda sesión (otro dispositivo)
+    expect(tabla('sesiones').length).toBe(2)
+
+    await cambiarPassword('Paciente123', 'NuevaClave9')
+
+    expect(tabla('sesiones').length).toBe(1)
+    expect(sesionActual().email).toBe(CUENTAS.paciente[0])
   })
 })

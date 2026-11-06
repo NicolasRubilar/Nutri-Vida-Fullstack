@@ -3,6 +3,16 @@ import { Link, MemoryRouter, Route, Routes } from 'react-router'
 import { AuthProvider } from '../context/AuthContext'
 import RutaProtegida from './RutaProtegida'
 import { cargarDatosDemo, iniciarComo } from '../test/ayudantes'
+import { revocarSesiones } from '../test/servidorFalso/servidor'
+import { MARCA_SESION, limpiarSesion } from '../services/http'
+import { useApi } from '../hooks/useApi'
+import { listarUsuarios } from '../services/api'
+
+// Vista protegida que consulta la API al montarse (como las vistas reales)
+function VistaUsuarios() {
+  const { data } = useApi(() => listarUsuarios())
+  return <p>GESTIÓN DE USUARIOS {data ? `(${data.length})` : ''}</p>
+}
 
 function montar(ruta) {
   return render(
@@ -22,7 +32,7 @@ function montar(ruta) {
               }
             />
             <Route element={<RutaProtegida roles={['admin']} />}>
-              <Route path="/admin/usuarios" element={<p>GESTIÓN DE USUARIOS</p>} />
+              <Route path="/admin/usuarios" element={<VistaUsuarios />} />
             </Route>
           </Route>
         </Routes>
@@ -59,12 +69,22 @@ describe('components/RutaProtegida', () => {
     expect(screen.getByText('GESTIÓN DE USUARIOS')).toBeTruthy()
   })
 
-  it('revalida el token en cada navegación: si fue revocado, vuelve a pedir login', async () => {
+  it('al recargar la página restaura la sesión con la cookie antes de mostrar la vista', async () => {
+    await iniciarComo('admin')
+    limpiarSesion() // la recarga borra la memoria de JavaScript…
+    localStorage.setItem(MARCA_SESION, '1') // …pero no la marca ni la cookie HttpOnly
+
+    montar('/admin/usuarios')
+    expect(screen.getByText('Recuperando tu sesión…')).toBeTruthy()
+    expect(await screen.findByText('GESTIÓN DE USUARIOS')).toBeTruthy()
+  })
+
+  it('si el backend revocó la sesión, la siguiente petición a la API lleva al login', async () => {
     await iniciarComo('admin')
     montar('/')
     expect(screen.getByText(/INICIO PRIVADO/)).toBeTruthy()
 
-    localStorage.setItem('nv_sesiones', '[]') // simula la sesión cerrada desde otro lugar
+    revocarSesiones() // p. ej. la cuenta fue desactivada o se cerró sesión en otro dispositivo
     fireEvent.click(screen.getByText('ir a usuarios'))
     expect(await screen.findByText('PANTALLA LOGIN')).toBeTruthy()
   })

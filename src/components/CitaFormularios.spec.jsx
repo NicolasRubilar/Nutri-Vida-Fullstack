@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { AccionesForm, ModalCancelarCita, SelectorHorario } from './CitaFormularios'
 import * as api from '../services/api'
 import { cargarDatosDemo, diaHabil, esperarAnimaciones, hastaQue, iniciarComo, tabla } from '../test/ayudantes'

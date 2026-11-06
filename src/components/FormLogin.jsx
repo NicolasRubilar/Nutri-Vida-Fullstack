@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { useAuth } from '../context/AuthContext'
-import { CUENTAS_DEMO, inicializarDatos } from '../data/seed'
-import { destinoTrasLogin } from '../utils/constantes'
+import { CUENTAS_DEMO, destinoTrasLogin } from '../utils/constantes'
 import { Alerta, Campo } from './ui'
 import Icono from './Icono'
 
@@ -32,14 +31,6 @@ export default function FormLogin({ encabezado, avisoInicial = '' }) {
     } finally {
       setEnviando(false)
     }
-  }
-
-  const restablecer = async () => {
-    if (!confirm('Se borrarán todos los datos guardados en este navegador y se cargarán los datos de demostración. ¿Continuar?')) return
-    setEnviando(true)
-    await inicializarDatos({ forzar: true })
-    setEnviando(false)
-    setAviso('Datos de demostración restablecidos.')
   }
 
   return (
@@ -77,11 +68,6 @@ export default function FormLogin({ encabezado, avisoInicial = '' }) {
               </small>
             </button>
           ))}
-        </div>
-        <div className="px-4 py-3 border-top">
-          <button type="button" className="btn btn-outline-secondary btn-sm" onClick={restablecer} disabled={enviando}>
-            Restablecer datos de demostración
-          </button>
         </div>
       </details>
     </div>

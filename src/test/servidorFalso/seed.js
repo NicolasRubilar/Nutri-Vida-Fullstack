@@ -1,18 +1,11 @@
-// Datos de demostración. Se cargan en localStorage la primera vez que se abre la app.
-import { db } from '../services/db'
-import { crearCredenciales } from '../services/auth'
-import { generarRecordatorios } from '../services/api'
-import { ESTADOS_CITA, HORARIOS, MOTIVOS_CONSULTA, ROLES } from '../utils/constantes'
-import { esFinDeSemana, hoyISO, sumarDias } from '../utils/formato'
+// Datos de demostración del backend simulado de las pruebas (mismos que DatosDemo.java del backend).
+import { db } from './db'
+import { crearCredenciales } from './auth'
+import { generarRecordatorios } from './api'
+import { ESTADOS_CITA, HORARIOS, MOTIVOS_CONSULTA, ROLES } from '../../utils/constantes'
+import { esFinDeSemana, hoyISO, sumarDias } from '../../utils/formato'
 
 const VERSION = '1'
-
-export const CUENTAS_DEMO = [
-  { rol: 'Administrador', email: 'admin@nutrivida.cl', password: 'Admin123' },
-  { rol: 'Secretaria', email: 'secretaria@nutrivida.cl', password: 'Secre123' },
-  { rol: 'Nutricionista', email: 'crojas@nutrivida.cl', password: 'Nutri123' },
-  { rol: 'Paciente', email: 'paciente@nutrivida.cl', password: 'Paciente123' },
-]
 
 function rutConDv(cuerpo) {
   let suma = 0

@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { AuthProvider } from '../context/AuthContext'
 import FormLogin from './FormLogin'
-import { cargarDatosDemo, esperarAnimaciones } from '../test/ayudantes'
+import { cargarDatosDemo } from '../test/ayudantes'
 
 function montar() {
   return render(
@@ -48,7 +48,7 @@ describe('components/FormLogin', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ingresar' }))
 
     expect(await screen.findByText('PANEL PRINCIPAL')).toBeTruthy()
-    expect(sessionStorage.getItem('nv_token')).not.toBeNull()
+    expect(localStorage.getItem('nv_sesion')).toBe('1')
   })
 
   it('las cuentas de demostración rellenan el formulario (estado controlado)', () => {
@@ -59,16 +59,14 @@ describe('components/FormLogin', () => {
     expect(screen.getByLabelText('Contraseña').value).toBe('Secre123')
   })
 
-  it('no restablece los datos si el usuario cancela la confirmación (mock de window.confirm)', async () => {
-    spyOn(window, 'confirm').and.returnValue(false)
-    localStorage.setItem('nv_marca', 'sin cambios')
+  it('si el backend no está disponible muestra un mensaje de conexión', async () => {
+    window.fetch.and.returnValue(Promise.reject(new TypeError('Failed to fetch')))
     montar()
+    escribir('Correo electrónico', 'admin@nutrivida.cl')
+    escribir('Contraseña', 'Admin123')
+    fireEvent.click(screen.getByRole('button', { name: 'Ingresar' }))
 
-    fireEvent.click(screen.getByText('Restablecer datos de demostración'))
-    expect(window.confirm).toHaveBeenCalled()
-    await esperarAnimaciones(300) // da tiempo a que un restablecimiento (si ocurriera) termine
-    expect(localStorage.getItem('nv_marca')).toBe('sin cambios')
-    expect(screen.queryByText('Datos de demostración restablecidos.')).toBeNull()
+    expect((await screen.findByRole('alert')).textContent).toContain('No se pudo conectar con el servidor')
   })
 
   it('deshabilita el botón de envío y cambia el texto a "Verificando..." mientras procesa el login', async () => {

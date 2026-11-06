@@ -8,4 +8,11 @@ export default defineConfig({
     react(),
     babel({ presets: [reactCompilerPreset()] })
   ],
+  server: {
+    // En desarrollo, /api se redirige al backend Spring Boot: el navegador ve un solo origen,
+    // así la cookie HttpOnly de renovación funciona sin configurar CORS.
+    proxy: {
+      '/api': 'http://localhost:8080',
+    },
+  },
 })

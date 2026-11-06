@@ -42,9 +42,10 @@ describe('Vistas de la secretaria', () => {
     fireEvent.change(filtroNutri, { target: { value: javiera } })
     fireEvent.click(screen.getByRole('button', { name: 'Últimos 30 días' }))
 
-    await hastaQue(() => document.querySelectorAll('.list-group-item').length > 0)
-    const textos = [...document.querySelectorAll('.list-group-item')].map((li) => li.textContent)
-    expect(textos.every((t) => t.includes('Javiera Pino'))).toBeTrue()
+    // Espera a que llegue la respuesta filtrada del backend (la lista anterior sigue visible mientras tanto)
+    const items = () => [...document.querySelectorAll('.list-group-item')].map((li) => li.textContent)
+    await hastaQue(() => items().length > 0 && items().every((t) => t.includes('Javiera Pino')))
+    expect(items().every((t) => t.includes('Javiera Pino'))).toBeTrue()
   })
 
   it('Agenda: registrar la ausencia de un nutricionista notifica a sus pacientes', async () => {
@@ -52,6 +53,7 @@ describe('Vistas de la secretaria', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /Registrar ausencia/ }))
     const select = await screen.findByLabelText('Nutricionista', { selector: '.modal select' })
+    await hastaQue(() => select.options.length > 1)
     fireEvent.change(select, { target: { value: select.options[1].value } })
     fireEvent.click(screen.getByRole('button', { name: 'Registrar y notificar' }))
 

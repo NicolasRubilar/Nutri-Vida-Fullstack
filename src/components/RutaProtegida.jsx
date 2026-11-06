@@ -1,21 +1,22 @@
 import { Navigate, Outlet, useLocation } from 'react-router'
 import { useAuth } from '../context/AuthContext'
-import { sesionActual } from '../services/auth'
+import { Cargando } from './ui'
 
-// Bloquea cualquier vista sin token válido y, si se indican roles, sin el rol adecuado.
+// Bloquea cualquier vista sin sesión y, si se indican roles, sin el rol adecuado.
+// Es una barrera de interfaz: la autorización real la vuelve a aplicar el backend en cada endpoint,
+// así que aunque alguien manipule el frontend, la API responde 401/403.
 export default function RutaProtegida({ roles }) {
-  const { usuario, logout } = useAuth()
+  const { usuario, restaurando, expirada } = useAuth()
   const location = useLocation()
 
-  // Revalida el token en cada navegación (puede haber expirado o sido revocado)
-  const vigente = usuario ? sesionActual() : null
-  if (!usuario || !vigente) {
-    if (usuario) queueMicrotask(logout)
+  // Tras recargar la página se espera a recuperar la sesión antes de decidir
+  if (restaurando) return <Cargando texto="Recuperando tu sesión…" />
+  if (!usuario) {
     // Un visitante que entra a la raíz ve la página de bienvenida
-    if (!usuario && location.pathname === '/') return <Navigate to="/bienvenida" replace />
-    return <Navigate to="/login" replace state={{ desde: location.pathname, expirada: !!usuario }} />
+    if (!expirada && location.pathname === '/') return <Navigate to="/bienvenida" replace />
+    return <Navigate to="/login" replace state={{ desde: location.pathname, expirada }} />
   }
-  if (roles && !roles.includes(vigente.rol)) {
+  if (roles && !roles.includes(usuario.rol)) {
     return <Navigate to="/sin-permiso" replace />
   }
   return <Outlet />

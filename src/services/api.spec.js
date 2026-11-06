@@ -1,205 +1,94 @@
 import * as api from './api'
-import { cerrarSesion } from './auth'
-import { cargarDatosDemo, diaHabil, iniciarComo, tabla } from '../test/ayudantes'
-import { hoyISO } from '../utils/formato'
+import { guardarSesion } from './http'
 
-// Ids útiles de los datos de demostración
-function ids() {
-  const usuarios = tabla('usuarios')
-  const porEmail = (e) => usuarios.find((u) => u.email === e).id
-  const nutri = (e) => tabla('nutricionistas').find((n) => n.usuarioId === porEmail(e)).id
-  const paciente = (e) => tabla('pacientes').find((p) => p.usuarioId === porEmail(e)).id
-  return {
-    camila: nutri('crojas@nutrivida.cl'),
-    javiera: nutri('jpino@nutrivida.cl'),
-    pedro: paciente('paciente@nutrivida.cl'), // asignado a Camila
-    matias: paciente('mriquelme@correo.cl'), // asignado a Javiera
-    adminId: porEmail('admin@nutrivida.cl'),
-  }
-}
+const USUARIO = { id: 'u1', nombre: 'Camila', apellido: 'Rojas', rol: 'nutricionista' }
 
-describe('services/api: reglas de negocio', () => {
-  beforeEach(async () => {
-    await cargarDatosDemo()
-  })
+// Contrato frontend ↔ backend: cada función llama al endpoint REST correcto con el cuerpo correcto
+describe('services/api: endpoints de la API REST', () => {
+  let llamadas
 
-  describe('privacidad de datos clínicos', () => {
-    it('el nutricionista solo lista a sus pacientes asignados', async () => {
-      await iniciarComo('nutri')
-      const pacientes = await api.listarPacientes()
-
-      expect(pacientes.map((p) => p.nombre).sort()).toEqual(['Pedro Sandoval', 'Valentina Lagos'])
-    })
-
-    it('el nutricionista no puede ver la ficha ni las mediciones de un paciente ajeno (403)', async () => {
-      const { matias } = ids()
-      await iniciarComo('nutri')
-
-      const e1 = await api.obtenerFicha(matias).catch((e) => e)
-      const e2 = await api.listarMediciones(matias).catch((e) => e)
-      expect(e1.status).toBe(403)
-      expect(e2.status).toBe(403)
-    })
-
-    it('la secretaria gestiona pacientes pero no recibe datos clínicos', async () => {
-      const { pedro } = ids()
-      await iniciarComo('secretaria')
-
-      const pacientes = await api.listarPacientes()
-      expect(pacientes.length).toBe(8)
-      expect(pacientes.every((p) => p.ultimaMedicion === null)).toBeTrue()
-      expect((await api.obtenerFicha(pedro).catch((e) => e)).status).toBe(403)
-    })
-
-    it('el paciente solo ve sus propias citas', async () => {
-      const { pedro } = ids()
-      await iniciarComo('paciente')
-      const citas = await api.listarCitas()
-
-      expect(citas.length).toBeGreaterThan(0)
-      expect(citas.every((c) => c.pacienteId === pedro)).toBeTrue()
-    })
-
-    it('sin sesión ningún servicio responde (401)', async () => {
-      cerrarSesion()
-      expect((await api.listarCitas().catch((e) => e)).status).toBe(401)
+  beforeEach(() => {
+    guardarSesion({ accessToken: 'jwt', expiraEn: Date.now() + 600_000, usuario: USUARIO })
+    llamadas = []
+    window.fetch.and.callFake((url, op) => {
+      const u = new URL(String(url))
+      llamadas.push({ metodo: op.method, ruta: u.pathname, query: Object.fromEntries(u.searchParams), cuerpo: op.body && JSON.parse(op.body) })
+      const cuerpo = u.pathname === '/api/ausencias' ? { afectadas: 3 } : u.pathname === '/api/perfil' ? { ...USUARIO, nombre: 'Camila Andrea' } : {}
+      return Promise.resolve(new Response(JSON.stringify(cuerpo), { status: 200 }))
     })
   })
 
-  describe('flujo de solicitud de citas', () => {
-    it('paciente solicita → secretaria confirma → paciente es notificado', async () => {
-      const { camila } = ids()
-      const fecha = diaHabil(20)
+  const ultima = () => llamadas.at(-1)
 
-      await iniciarComo('paciente')
-      const solicitada = await api.solicitarCita({ nutricionistaId: camila, fecha, hora: '10:00', motivo: 'Control de seguimiento' })
-      expect(solicitada.estado).toBe('pendiente')
-
-      cerrarSesion()
-      await iniciarComo('secretaria')
-      const confirmada = await api.confirmarCita(solicitada.id)
-      expect(confirmada.estado).toBe('confirmada')
-      expect(await api.horariosDisponibles(camila, fecha)).not.toContain('10:00')
-
-      cerrarSesion()
-      await iniciarComo('paciente')
-      const notificaciones = await api.misNotificaciones()
-      expect(notificaciones.some((n) => n.titulo === 'Cita confirmada')).toBeTrue()
-      const historial = await api.historialCita(solicitada.id)
-      expect(historial.map((h) => h.estado)).toEqual(['pendiente', 'confirmada'])
-    })
-
-    it('rechaza horarios ocupados y fines de semana (422)', async () => {
-      const { camila } = ids()
-      const fecha = diaHabil(21)
-      await iniciarComo('paciente')
-      await api.solicitarCita({ nutricionistaId: camila, fecha, hora: '11:00', motivo: 'Otro' })
-
-      const ocupado = await api.solicitarCita({ nutricionistaId: camila, fecha, hora: '11:00', motivo: 'Otro' }).catch((e) => e)
-      expect(ocupado.status).toBe(422)
-      expect(ocupado.campos.hora).toContain('no está disponible')
-
-      const sabado = new Date()
-      sabado.setDate(sabado.getDate() + ((6 - sabado.getDay() + 7) % 7 || 7))
-      const iso = `${sabado.getFullYear()}-${String(sabado.getMonth() + 1).padStart(2, '0')}-${String(sabado.getDate()).padStart(2, '0')}`
-      const finde = await api.solicitarCita({ nutricionistaId: camila, fecha: iso, hora: '10:00', motivo: 'Otro' }).catch((e) => e)
-      expect(finde.campos.fecha).toContain('lunes a viernes')
-    })
-
-    it('el paciente cancela su cita y no puede cancelarla dos veces (409)', async () => {
-      await iniciarComo('paciente')
-      const cita = (await api.listarCitas()).find((c) => c.estado === 'confirmada')
-
-      expect((await api.cancelarCita(cita.id, 'Viaje')).estado).toBe('cancelada')
-      expect((await api.cancelarCita(cita.id).catch((e) => e)).status).toBe(409)
-    })
-
-    it('al reprogramar, el paciente deja la cita pendiente de confirmación', async () => {
-      await iniciarComo('paciente')
-      const cita = (await api.listarCitas()).find((c) => c.estado === 'confirmada')
-      const nueva = await api.reprogramarCita(cita.id, { fecha: diaHabil(25), hora: '16:00' })
-
-      expect(nueva.estado).toBe('pendiente')
-      expect(nueva.hora).toBe('16:00')
-    })
-
-    it('registrar la ausencia de un nutricionista marca sus citas del día y avisa a cada paciente', async () => {
-      const { camila } = ids()
-      const cita = tabla('citas').find((c) => c.nutricionistaId === camila && c.estado === 'confirmada' && c.fecha >= diaHabil(0))
-      await iniciarComo('secretaria')
-
-      const afectadas = await api.registrarAusencia(camila, cita.fecha)
-      const actualizada = tabla('citas').find((c) => c.id === cita.id)
-      expect(afectadas).toBeGreaterThanOrEqual(1)
-      expect(actualizada.requiereReprogramacion).toBeTrue()
-      expect(tabla('notificaciones').some((n) => n.titulo === 'Tu cita debe reprogramarse')).toBeTrue()
-    })
+  it('CRUD de usuarios (admin)', async () => {
+    await api.listarUsuarios()
+    expect(ultima()).toEqual(jasmine.objectContaining({ metodo: 'GET', ruta: '/api/usuarios' }))
+    await api.crearUsuario({ nombre: 'Rosa' })
+    expect(ultima()).toEqual(jasmine.objectContaining({ metodo: 'POST', ruta: '/api/usuarios', cuerpo: { nombre: 'Rosa' } }))
+    await api.actualizarUsuario('u9', { nombre: 'Rosa' })
+    expect(ultima()).toEqual(jasmine.objectContaining({ metodo: 'PUT', ruta: '/api/usuarios/u9' }))
+    await api.cambiarEstadoUsuario('u9', false)
+    expect(ultima()).toEqual(jasmine.objectContaining({ metodo: 'PATCH', ruta: '/api/usuarios/u9/estado', cuerpo: { activo: false } }))
+    await api.eliminarUsuario('u9')
+    expect(ultima()).toEqual(jasmine.objectContaining({ metodo: 'DELETE', ruta: '/api/usuarios/u9' }))
   })
 
-  describe('ficha clínica, mediciones y planes', () => {
-    it('valida los rangos de una medición (422) y la guarda cuando es correcta', async () => {
-      const { pedro } = ids()
-      await iniciarComo('nutri')
+  it('las mediciones se envían con números (los inputs entregan texto) y vacíos como null', async () => {
+    await api.registrarMedicion('p1', { fecha: '2026-11-02', peso: '82.5', talla: '170', cintura: '', grasa: undefined, notas: 'ok' })
 
-      const error = await api.registrarMedicion(pedro, { fecha: hoyISO(), peso: 900, talla: 176 }).catch((e) => e)
-      expect(error.status).toBe(422)
-      expect(error.campos.peso).toBeDefined()
-
-      const antes = (await api.listarMediciones(pedro)).length
-      await api.registrarMedicion(pedro, { fecha: hoyISO(), peso: 87.5, talla: 176, cintura: 96 })
-      expect((await api.listarMediciones(pedro)).length).toBe(antes + 1)
+    expect(ultima()).toEqual({
+      metodo: 'POST',
+      ruta: '/api/pacientes/p1/mediciones',
+      query: {},
+      cuerpo: { fecha: '2026-11-02', peso: 82.5, talla: 170, cintura: null, grasa: null, notas: 'ok' },
     })
-
-    it('un plan nuevo reemplaza al vigente y el anterior queda en el historial', async () => {
-      const { pedro } = ids()
-      await iniciarComo('nutri')
-      await api.guardarPlan(pedro, { objetivo: 'Mantención', calorias: 2000, almuerzo: 'Legumbres con ensalada' })
-
-      const planes = await api.listarPlanes(pedro)
-      expect(planes.filter((p) => p.vigente).length).toBe(1)
-      expect(planes.find((p) => p.vigente).objetivo).toBe('Mantención')
-      expect(planes.length).toBe(2)
-    })
+    await api.actualizarMedicion('m1', { fecha: '2026-11-02', peso: 80, talla: 170 })
+    expect(ultima().metodo + ' ' + ultima().ruta).toBe('PUT /api/mediciones/m1')
+    await api.eliminarMedicion('m1')
+    expect(ultima().metodo + ' ' + ultima().ruta).toBe('DELETE /api/mediciones/m1')
   })
 
-  describe('administración y reportes', () => {
-    it('solo el administrador obtiene estadísticas; la tasa de inasistencia es coherente', async () => {
-      await iniciarComo('nutri')
-      expect((await api.estadisticas({}).catch((e) => e)).status).toBe(403)
+  it('guardarPlan crea (POST anidado en el paciente) o edita (PUT por id)', async () => {
+    await api.guardarPlan('p1', { objetivo: 'X', calorias: '1900', almuerzo: 'Y' })
+    expect(ultima()).toEqual(jasmine.objectContaining({ metodo: 'POST', ruta: '/api/pacientes/p1/planes' }))
+    expect(ultima().cuerpo.calorias).toBe(1900)
 
-      cerrarSesion()
-      await iniciarComo('admin')
-      const s = await api.estadisticas({})
-      const atendidas = s.porEstado.find((e) => e.estado === 'atendida').cantidad
-      const faltas = s.porEstado.find((e) => e.estado === 'inasistencia').cantidad
-      expect(s.tasaInasistencia).toBeCloseTo(faltas / (atendidas + faltas), 5)
-      expect(s.porNutricionista.length).toBe(4)
-    })
+    await api.guardarPlan('p1', { objetivo: 'X', calorias: '', almuerzo: 'Y' }, 'plan7')
+    expect(ultima()).toEqual(jasmine.objectContaining({ metodo: 'PUT', ruta: '/api/planes/plan7' }))
+    expect(ultima().cuerpo.calorias).toBeNull()
+  })
 
-    it('el administrador crea usuarios con rol y no puede desactivarse a sí mismo', async () => {
-      const { adminId } = ids()
-      await iniciarComo('admin')
+  it('el listado de citas envía solo los filtros indicados como parámetros de consulta', async () => {
+    await api.listarCitas({ desde: '2026-11-01', hasta: '2026-11-30', estado: undefined })
+    expect(ultima()).toEqual(jasmine.objectContaining({ ruta: '/api/citas', query: { desde: '2026-11-01', hasta: '2026-11-30' } }))
 
-      const nuevo = await api.crearUsuario({
-        nombre: 'Rosa',
-        apellido: 'Toro',
-        rut: '10.000.013-K',
-        email: 'rtoro@nutrivida.cl',
-        rol: 'nutricionista',
-        especialidad: 'Pérdida de peso',
-        password: 'Nutri2026',
-      })
-      expect(nuevo.rol).toBe('nutricionista')
-      expect((await api.listarNutricionistas()).some((n) => n.nombre === 'Rosa Toro')).toBeTrue()
-      expect((await api.cambiarEstadoUsuario(adminId, false).catch((e) => e)).status).toBe(409)
-    })
+    await api.horariosDisponibles('n1', '2026-11-10', 'c4')
+    expect(ultima().query).toEqual({ nutricionistaId: 'n1', fecha: '2026-11-10', excluir: 'c4' })
+  })
 
-    it('equipoPublico no requiere sesión y no expone datos sensibles', async () => {
-      cerrarSesion()
-      const equipo = await api.equipoPublico()
+  it('las acciones sobre una cita usan PATCH /api/citas/{id}/{acción}', async () => {
+    await api.confirmarCita('c1', { fecha: '2026-11-10', hora: '10:00' })
+    await api.cancelarCita('c1', 'Viaje')
+    await api.reprogramarCita('c1', { fecha: '2026-11-11', hora: '11:00' })
+    await api.marcarAsistencia('c1', true)
 
-      expect(equipo.length).toBe(4)
-      expect(Object.keys(equipo[0]).sort()).toEqual(['especialidad', 'id', 'nombre'])
-    })
+    expect(llamadas.map((l) => `${l.metodo} ${l.ruta}`)).toEqual([
+      'PATCH /api/citas/c1/confirmar',
+      'PATCH /api/citas/c1/cancelar',
+      'PATCH /api/citas/c1/reprogramar',
+      'PATCH /api/citas/c1/asistencia',
+    ])
+    expect(llamadas[1].cuerpo).toEqual({ motivo: 'Viaje' })
+    expect(llamadas[3].cuerpo).toEqual({ asistio: true })
+  })
+
+  it('registrarAusencia devuelve la cantidad de citas afectadas', async () => {
+    expect(await api.registrarAusencia('n1', '2026-11-10')).toBe(3)
+    expect(ultima().cuerpo).toEqual({ nutricionistaId: 'n1', fecha: '2026-11-10' })
+  })
+
+  it('el equipo público se pide sin token', async () => {
+    await api.equipoPublico()
+    expect(window.fetch.calls.mostRecent().args[1].headers.Authorization).toBeUndefined()
   })
 })

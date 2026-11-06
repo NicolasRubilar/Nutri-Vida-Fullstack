@@ -62,6 +62,14 @@ export const SESION_MINUTOS = 120
 export const MAX_INTENTOS = 5
 export const BLOQUEO_MINUTOS = 10
 
+// Cuentas que carga el backend la primera vez que arranca (DatosDemo.java)
+export const CUENTAS_DEMO = [
+  { rol: 'Administrador', email: 'admin@nutrivida.cl', password: 'Admin123' },
+  { rol: 'Secretaria', email: 'secretaria@nutrivida.cl', password: 'Secre123' },
+  { rol: 'Nutricionista', email: 'crojas@nutrivida.cl', password: 'Nutri123' },
+  { rol: 'Paciente', email: 'paciente@nutrivida.cl', password: 'Paciente123' },
+]
+
 export const COMIDAS = [
   ['desayuno', 'Desayuno'],
   ['colacionAm', 'Colación de media mañana'],
